@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Call App</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+
+        .user-info {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .user-id {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #007bff;
+            background: #e7f3ff;
+            padding: 10px 20px;
+            border-radius: 25px;
+            display: inline-block;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        #startBtn { background: #28a745; color: white; }
+        #callBtn { background: #007bff; color: white; }
+        #hangupBtn { background: #dc3545; color: white; }
+        button:disabled { background: #6c757d; cursor: not-allowed; transform: none; }
+
+        .call-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        input {
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            width: 200px;
+            margin-right: 10px;
+        }
+
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .status.connected { background: #d4edda; color: #155724; }
+        .status.disconnected { background: #f8d7da; color: #721c24; }
+        .status.idle { background: #fff3cd; color: #856404; }
+        .status.calling { background: #cce7ff; color: #004085; }
+
+        .video-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        video {
+            width: 100%;
+            height: 300px;
+            background: #000;
+            border-radius: 10px;
+            border: 3px solid #ddd;
+        }
+
+        #localVideo {
+            transform: scaleX(-1);
+        }
+
+        /* Incoming Call Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            min-width: 400px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+
+        .modal h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 25px;
+        }
+
+        #acceptCall { background: #28a745; color: white; padding: 12px 30px; }
+        #rejectCall { background: #dc3545; color: white; padding: 12px 30px; }
+
+        @media (max-width: 768px) {
+            .video-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .controls {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            input {
+                width: 100%;
+                margin: 0 0 10px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌐 Video Call App</h1>
+
+        <div class="user-info">
+            <h3>Your ID:</h3>
+            <div class="user-id" id="userId">Generating...</div>
+        </div>
+
+        <div class="controls">
+            <button id="startBtn">🎥 Start Media</button>
+            <button id="callBtn" disabled>📞 Make Call</button>
+            <button id="hangupBtn" disabled>❌ Hang Up</button>
+        </div>
+
+        <div class="call-section">
+            <h3>Make a Call</h3>
+            <input type="text" id="callInput" placeholder="Enter User ID">
+            <p style="margin-top: 10px; color: #666;">Share your ID with others to receive calls</p>
+        </div>
+
+        <div class="status idle" id="status">
+            Ready to start - Click "Start Media"
+        </div>
+
+        <div class="video-container">
+            <div>
+                <h3>Your Video</h3>
+                <video id="localVideo" autoplay muted playsinline></video>
+            </div>
+            <div>
+                <h3>Remote Video</h3>
+                <video id="remoteVideo" autoplay playsinline></video>
+            </div>
+        </div>
+    </div>
+
+    <!-- Incoming Call Modal -->
+    <div class="modal" id="incomingCallModal">
+        <div class="modal-content">
+            <h2>📞 Incoming Call</h2>
+            <p>Call from: <strong id="callerId">Unknown</strong></p>
+            <div class="modal-buttons">
+                <button id="acceptCall">✅ Accept</button>
+                <button id="rejectCall">❌ Reject</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        // ========== CONFIGURATION ==========
+        const SERVER_URL = window.location.origin;
+        
+        // WebRTC Configuration - Optimized for Russia/India
+        const WEBRTC_CONFIG = {
+            iceServers: [
+                // STUN servers
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' },
+                { urls: 'stun:stun.agprojects.com:3478' },
+                
+                // TURN servers for firewall traversal
+                {
+                    urls: 'turn:openrelay.metered.ca:80',
+                    username: 'openrelayproject',
+                    credential: 'openrelayproject'
+                },
+                {
+                    urls: 'turn:openrelay.metered.ca:443',
+                    username: 'openrelayproject',
+                    credential: 'openrelayproject'
+                },
+                {
+                    urls: 'turn:numb.viagenie.ca:3478',
+                    username: 'webrtc@live.com',
+                    credential: 'muazkh'
+                }
+            ],
+            iceCandidatePoolSize: 10
+        };
+
+        // ========== STATE VARIABLES ==========
+        let localStream = null;
+        let remoteStream = null;
+        let peerConnection = null;
+        let socket = null;
+        let userId = null;
+        let currentCall = null;
+
+        // ========== DOM ELEMENTS ==========
+        const elements = {
+            userId: document.getElementById('userId'),
+            startBtn: document.getElementById('startBtn'),
+            callBtn: document.getElementById('callBtn'),
+            hangupBtn: document.getElementById('hangupBtn'),
+            callInput: document.getElementById('callInput'),
+            localVideo: document.getElementById('localVideo'),
+            remoteVideo: document.getElementById('remoteVideo'),
+            status: document.getElementById('status'),
+            incomingCallModal: document.getElementById('incomingCallModal'),
+            callerId: document.getElementById('callerId'),
+            acceptCall: document.getElementById('acceptCall'),
+            rejectCall: document.getElementById('rejectCall')
+        };
+
+        // ========== INITIALIZATION ==========
+        window.addEventListener('load', initializeApp);
+
+        function initializeApp() {
+            console.log('🚀 Initializing app...');
+            
+            // Generate user ID
+            userId = generateUserId();
+            elements.userId.textContent = userId;
+            
+            // Initialize socket connection
+            initializeSocket();
+            
+            // Setup event listeners
+            setupEventListeners();
+            
+            updateStatus('Ready to start', 'idle');
+            console.log('✅ App initialized successfully');
+        }
+
+        function initializeSocket() {
+            socket = io(SERVER_URL);
+            
+            socket.on('connect', () => {
+                console.log('🔗 Connected to server');
+                socket.emit('register', userId);
+            });
+            
+            socket.on('registered', (data) => {
+                console.log('✅ Registered with server:', data.userId);
+            });
+            
+            socket.on('incoming-call', handleIncomingCall);
+            socket.on('call-accepted', handleCallAccepted);
+            socket.on('ice-candidate', handleRemoteIceCandidate);
+            socket.on('call-ended', handleCallEnded);
+            socket.on('call-failed', handleCallFailed);
+            socket.on('disconnect', () => {
+                updateStatus('Disconnected from server', 'disconnected');
+            });
+        }
+
+        function setupEventListeners() {
+            elements.startBtn.addEventListener('click', startMedia);
+            elements.callBtn.addEventListener('click', makeCall);
+            elements.hangupBtn.addEventListener('click', hangUp);
+            elements.acceptCall.addEventListener('click', acceptCall);
+            elements.rejectCall.addEventListener('click', rejectCall);
+        }
+
+        // ========== MEDIA HANDLING ==========
+        async function startMedia() {
+            try {
+                updateStatus('Accessing camera and microphone...', 'idle');
+                
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        frameRate: { ideal: 30 }
+                    },
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    }
+                });
+                
+                elements.localVideo.srcObject = localStream;
+                elements.startBtn.disabled = true;
+                elements.callBtn.disabled = false;
+                
+                updateStatus('Ready to make calls!', 'idle');
+                console.log('✅ Media started successfully');
+                
+            } catch (error) {
+                console.error('❌ Media error:', error);
+                updateStatus('Failed to access media', 'disconnected');
+                alert('Error accessing camera/microphone: ' + error.message);
+            }
+        }
+
+        // ========== CALL MANAGEMENT ==========
+        async function makeCall() {
+            const targetUserId = elements.callInput.value.trim();
+            
+            if (!targetUserId) {
+                alert('Please enter a User ID');
+                return;
+            }
+            
+            if (targetUserId === userId) {
+                alert('Cannot call yourself');
+                return;
+            }
+            
+            if (!localStream) {
+                alert('Please start media first');
+                return;
+            }
+            
+            console.log('📞 Making call to:', targetUserId);
+            currentCall = targetUserId;
+            elements.callBtn.disabled = true;
+            elements.hangupBtn.disabled = false;
+            updateStatus(`Calling ${targetUserId}...`, 'calling');
+            
+            try {
+                await createPeerConnection();
+                await createAndSendOffer(targetUserId);
+            } catch (error) {
+                console.error('❌ Call error:', error);
+                updateStatus('Call failed', 'disconnected');
+                resetCall();
+            }
+        }
+
+        async function createAndSendOffer(targetUserId) {
+            const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
+            
+            socket.emit('call', {
+                to: targetUserId,
+                offer: offer
+            });
+            
+            console.log('✅ Offer created and sent');
+        }
+
+        function handleIncomingCall(data) {
+            console.log('📞 Incoming call from:', data.from);
+            
+            if (currentCall) {
+                console.log('❌ Already in a call, rejecting incoming call');
+                return;
+            }
+            
+            currentCall = data.from;
+            elements.callerId.textContent = data.from;
+            elements.incomingCallModal.style.display = 'flex';
+            updateStatus(`Incoming call from ${data.from}`, 'calling');
+        }
+
+        async function acceptCall() {
+            console.log('✅ Accepting call from:', currentCall);
+            
+            if (!localStream) {
+                await startMedia();
+            }
+            
+            elements.incomingCallModal.style.display = 'none';
+            elements.hangupBtn.disabled = false;
+            updateStatus(`Connected with ${currentCall}`, 'connected');
+            
+            try {
+                await createPeerConnection();
+                await handleIncomingOffer(currentCall, incomingOffer);
+                
+                // Clear the stored offer
+                incomingOffer = null;
+            } catch (error) {
+                console.error('❌ Error accepting call:', error);
+                updateStatus('Failed to accept call', 'disconnected');
+                resetCall();
+            }
+        }
+
+        let incomingOffer = null;
+
+        async function handleIncomingCall(data) {
+            console.log('📞 Incoming call from:', data.from);
+            
+            if (currentCall) {
+                console.log('❌ Already in a call, rejecting incoming call');
+                return;
+            }
+            
+            currentCall = data.from;
+            incomingOffer = data.offer;
+            elements.callerId.textContent = data.from;
+            elements.incomingCallModal.style.display = 'flex';
+            updateStatus(`Incoming call from ${data.from}`, 'calling');
+        }
+
+        async function handleIncomingOffer(callerId, offer) {
+            await peerConnection.setRemoteDescription(offer);
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
+            
+            socket.emit('accept-call', {
+                to: callerId,
+                answer: answer
+            });
+            
+            console.log('✅ Answer created and sent');
+        }
+
+        function rejectCall() {
+            console.log('❌ Call rejected');
+            elements.incomingCallModal.style.display = 'none';
+            resetCall();
+        }
+
+        function handleCallAccepted(data) {
+            console.log('✅ Call accepted by remote user');
+            peerConnection.setRemoteDescription(data.answer)
+                .then(() => {
+                    updateStatus('Call connected!', 'connected');
+                })
+                .catch(error => {
+                    console.error('❌ Error setting remote description:', error);
+                });
+        }
+
+        function handleCallEnded() {
+            console.log('📞 Call ended by remote user');
+            updateStatus('Call ended', 'idle');
+            resetCall();
+        }
+
+        function handleCallFailed(data) {
+            console.log('❌ Call failed:', data.reason);
+            alert(`Call failed: ${data.reason === 'user-not-found' ? 'User not found' : 'Unknown error'}`);
+            updateStatus('Call failed', 'disconnected');
+            resetCall();
+        }
+
+        function hangUp() {
+            console.log('📞 Hanging up call');
+            
+            if (currentCall) {
+                socket.emit('hangup', { to: currentCall });
+            }
+            
+            updateStatus('Call ended', 'idle');
+            resetCall();
+        }
+
+        function resetCall() {
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+            
+            if (elements.remoteVideo.srcObject) {
+                elements.remoteVideo.srcObject = null;
+            }
+            
+            currentCall = null;
+            incomingOffer = null;
+            elements.callBtn.disabled = !localStream;
+            elements.hangupBtn.disabled = true;
+            elements.incomingCallModal.style.display = 'none';
+        }
+
+        // ========== WEBRTC PEER CONNECTION ==========
+        function createPeerConnection() {
+            console.log('🔗 Creating peer connection');
+            
+            peerConnection = new RTCPeerConnection(WEBRTC_CONFIG);
+            
+            // Add local stream tracks
+            localStream.getTracks().forEach(track => {
+                peerConnection.addTrack(track, localStream);
+            });
+            
+            // Handle remote stream
+            peerConnection.ontrack = (event) => {
+                console.log('✅ Received remote stream');
+                elements.remoteVideo.srcObject = event.streams[0];
+            };
+            
+            // Handle ICE candidates
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate && currentCall) {
+                    socket.emit('ice-candidate', {
+                        to: currentCall,
+                        candidate: event.candidate
+                    });
+                }
+            };
+            
+            // Handle connection state changes
+            peerConnection.onconnectionstatechange = () => {
+                console.log('🔗 Connection state:', peerConnection.connectionState);
+                
+                switch(peerConnection.connectionState) {
+                    case 'connected':
+                        updateStatus('Call connected!', 'connected');
+                        break;
+                    case 'disconnected':
+                    case 'failed':
+                        updateStatus('Connection lost', 'disconnected');
+                        setTimeout(() => {
+                            if (peerConnection && peerConnection.connectionState === 'failed') {
+                                hangUp();
+                            }
+                        }, 2000);
+                        break;
+                }
+            };
+            
+            return Promise.resolve();
+        }
+
+        async function handleRemoteIceCandidate(data) {
+            if (peerConnection && data.candidate) {
+                try {
+                    await peerConnection.addIceCandidate(data.candidate);
+                } catch (error) {
+                    console.error('❌ Error adding ICE candidate:', error);
+                }
+            }
+        }
+
+        // ========== UTILITY FUNCTIONS ==========
+        function generateUserId() {
+            return Math.random().toString(36).substring(2, 8).toUpperCase();
+        }
+
+        function updateStatus(message, type) {
+            elements.status.textContent = message;
+            elements.status.className = 'status ' + type;
+            console.log('📊 Status:', message);
+        }
+
+        // Handle page unload
+        window.addEventListener('beforeunload', hangUp);
+    </script>
+</body>
+</html>
